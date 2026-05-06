@@ -14,16 +14,88 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      profiles: {
+        Row: {
+          boutique_name: string | null
+          created_at: string
+          email: string
+          full_name: string
+          id: string
+          mobile: string | null
+          referral_code: string | null
+          referred_by: string | null
+          status: Database["public"]["Enums"]["user_status"]
+          user_type: Database["public"]["Enums"]["app_role"]
+        }
+        Insert: {
+          boutique_name?: string | null
+          created_at?: string
+          email: string
+          full_name: string
+          id: string
+          mobile?: string | null
+          referral_code?: string | null
+          referred_by?: string | null
+          status?: Database["public"]["Enums"]["user_status"]
+          user_type?: Database["public"]["Enums"]["app_role"]
+        }
+        Update: {
+          boutique_name?: string | null
+          created_at?: string
+          email?: string
+          full_name?: string
+          id?: string
+          mobile?: string | null
+          referral_code?: string | null
+          referred_by?: string | null
+          status?: Database["public"]["Enums"]["user_status"]
+          user_type?: Database["public"]["Enums"]["app_role"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "profiles_referred_by_fkey"
+            columns: ["referred_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_roles: {
+        Row: {
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      generate_referral_code: { Args: never; Returns: string }
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "admin" | "boutique_owner" | "customer"
+      user_status: "active" | "pending" | "restricted"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +222,9 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["admin", "boutique_owner", "customer"],
+      user_status: ["active", "pending", "restricted"],
+    },
   },
 } as const
