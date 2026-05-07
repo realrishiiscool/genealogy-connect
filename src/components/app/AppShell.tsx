@@ -33,7 +33,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-primary shadow-soft">
             <Network className="h-5 w-5 text-primary-foreground" />
           </div>
-          <span className="text-lg font-bold">Boutiq<span className="text-gradient-primary">Net</span></span>
+          <span className="text-lg font-bold">Bouti<span className="text-gradient-primary">fy</span></span>
         </Link>
         <nav className="flex-1 space-y-1 px-3">
           {items.map((it) => {

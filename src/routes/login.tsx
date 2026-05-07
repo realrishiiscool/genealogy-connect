@@ -9,7 +9,7 @@ import { toast } from "sonner";
 import { Network } from "lucide-react";
 
 export const Route = createFileRoute("/login")({
-  head: () => ({ meta: [{ title: "Login — BoutiqNet" }] }),
+  head: () => ({ meta: [{ title: "Login — Boutify" }] }),
   component: Login,
 });
 
@@ -41,7 +41,7 @@ function Login() {
           <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-primary shadow-soft">
             <Network className="h-5 w-5 text-primary-foreground" />
           </div>
-          <span className="text-xl font-bold">Boutiq<span className="text-gradient-primary">Net</span></span>
+          <span className="text-xl font-bold">Bouti<span className="text-gradient-primary">fy</span></span>
         </Link>
         <div className="rounded-2xl border border-border bg-card p-8 shadow-elegant">
           <h1 className="text-2xl font-bold">Welcome back</h1>

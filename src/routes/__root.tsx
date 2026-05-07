@@ -25,7 +25,7 @@ export const Route = createRootRoute({
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Boutique Referral Platform — Build Your Customer Network" },
+      { title: "Boutify — Build Your Customer Network" },
       { name: "description", content: "Premium customer referral & genealogy platform for modern boutiques. Visualize, grow, and manage your referral network." },
     ],
     links: [{ rel: "stylesheet", href: appCss }],

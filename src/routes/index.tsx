@@ -5,7 +5,7 @@ import { ArrowRight, Network, Users, Sparkles, Shield, BarChart3, Share2, Check 
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Boutique Referral Platform — Build Your Customer Network" },
+      { title: "Boutify — Build Your Customer Network" },
       { name: "description", content: "Premium customer referral & genealogy platform with stunning visualizations." },
     ],
   }),
@@ -20,7 +20,7 @@ function Nav() {
           <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-primary shadow-soft">
             <Network className="h-5 w-5 text-primary-foreground" />
           </div>
-          <span className="text-lg font-bold">Boutiq<span className="text-gradient-primary">Net</span></span>
+          <span className="text-lg font-bold">Bouti<span className="text-gradient-primary">fy</span></span>
         </Link>
         <nav className="hidden items-center gap-8 text-sm font-medium text-muted-foreground md:flex">
           <a href="#features" className="hover:text-foreground transition-colors">Features</a>
@@ -153,7 +153,7 @@ function Landing() {
           <div className="overflow-hidden rounded-3xl bg-gradient-primary p-12 text-center text-primary-foreground shadow-elegant md:p-20">
             <h2 className="text-4xl font-bold md:text-5xl">Ready to grow your boutique?</h2>
             <p className="mx-auto mt-4 max-w-xl text-lg opacity-90">
-              Join boutiques using BoutiqNet to turn customers into a self-growing referral engine.
+              Join boutiques using Boutify to turn customers into a self-growing referral engine.
             </p>
             <div className="mt-8 flex flex-wrap items-center justify-center gap-4">
               <Link to="/register">
@@ -173,7 +173,7 @@ function Landing() {
 
       <footer className="border-t border-border py-10">
         <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-4 px-6 text-sm text-muted-foreground md:flex-row">
-          <div>© {new Date().getFullYear()} BoutiqNet. Crafted for modern boutiques.</div>
+          <div>© {new Date().getFullYear()} Boutify. Crafted for modern boutiques.</div>
           <div className="flex gap-6">
             <a href="#features" className="hover:text-foreground">Features</a>
             <a href="#how" className="hover:text-foreground">How it works</a>
