@@ -40,15 +40,17 @@ function Dashboard() {
             map.get(c.referred_by)!.push(c.id);
           }
         });
-        const queue = [profile!.id];
+        const queue = [{ id: profile!.id, depth: 0 }];
         const visited = new Set<string>();
         while (queue.length) {
-          const id = queue.shift()!;
-          for (const ch of map.get(id) ?? []) {
+          const curr = queue.shift()!;
+          for (const ch of map.get(curr.id) ?? []) {
             if (visited.has(ch)) continue;
             visited.add(ch);
-            queue.push(ch);
-            if (id === profile!.id) direct++;
+            if (curr.depth + 1 < 3) {
+              queue.push({ id: ch, depth: curr.depth + 1 });
+            }
+            if (curr.id === profile!.id) direct++;
           }
         }
         network = visited.size;
@@ -79,7 +81,7 @@ function Dashboard() {
   }, [profile, role]);
 
   const referralLink = profile?.referral_code
-    ? `${typeof window !== "undefined" ? window.location.origin : ""}/register?ref=${profile.referral_code}`
+    ? `${window.location.origin}${window.location.pathname}#/register?ref=${profile.referral_code}`
     : null;
 
   return (

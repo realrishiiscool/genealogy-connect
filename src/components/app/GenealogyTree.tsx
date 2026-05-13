@@ -4,11 +4,27 @@ import "@xyflow/react/dist/style.css";
 import { supabase } from "@/integrations/supabase/client";
 import type { Profile } from "@/contexts/AuthContext";
 
-type Customer = Pick<Profile, "id" | "full_name" | "referral_code" | "referred_by" | "status" | "created_at">;
+type Customer = Pick<Profile, "id" | "full_name" | "referral_code" | "referred_by" | "status" | "created_at" | "mobile">;
 
-function CustomerNode({ data }: { data: { name: string; code: string | null; refs: number; status: string; date: string; root?: boolean } }) {
+function CustomerNode({ data }: { data: { name: string; code: string | null; refs: number; status: string; date: string; root?: boolean; mobile?: string | null; depth: number } }) {
   const statusColor =
     data.status === "active" ? "bg-emerald-500" : data.status === "pending" ? "bg-amber-500" : "bg-rose-500";
+
+  if (data.depth >= 2) {
+    return (
+      <div className="min-w-[210px] rounded-2xl border border-border bg-card shadow-soft p-4">
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-full text-sm font-bold bg-gradient-primary text-primary-foreground">
+            {data.name[0]?.toUpperCase()}
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="truncate text-sm font-semibold">{data.name}</div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className={`min-w-[210px] rounded-2xl border ${data.root ? "border-transparent bg-gradient-primary text-primary-foreground shadow-elegant" : "border-border bg-card shadow-soft"} p-4`}>
       <div className="flex items-center gap-3">
@@ -20,6 +36,11 @@ function CustomerNode({ data }: { data: { name: string; code: string | null; ref
           <div className={`truncate font-mono text-xs ${data.root ? "opacity-90" : "text-muted-foreground"}`}>{data.code ?? "—"}</div>
         </div>
       </div>
+      {data.mobile && (
+        <div className={`mt-2 text-sm font-medium ${data.root ? "opacity-90" : "text-foreground"}`}>
+          {data.mobile}
+        </div>
+      )}
       <div className={`mt-3 flex items-center justify-between text-xs ${data.root ? "opacity-90" : "text-muted-foreground"}`}>
         <span className="inline-flex items-center gap-1.5">
           <span className={`h-2 w-2 rounded-full ${statusColor}`} />
@@ -44,7 +65,7 @@ export function GenealogyTree({ rootId }: { rootId?: string }) {
     (async () => {
       const { data } = await supabase
         .from("profiles")
-        .select("id, full_name, referral_code, referred_by, status, created_at")
+        .select("id, full_name, referral_code, referred_by, status, created_at, mobile")
         .eq("user_type", "customer");
       setCustomers((data ?? []) as Customer[]);
       setLoading(false);
@@ -72,7 +93,7 @@ export function GenealogyTree({ rootId }: { rootId?: string }) {
     const VSPACE = 170;
 
     function layout(node: Customer, depth: number, xOffset: number, isRoot: boolean): number {
-      const children = byParent.get(node.id) ?? [];
+      const children = depth < 3 ? (byParent.get(node.id) ?? []) : [];
       let width = 0;
       const childPositions: number[] = [];
       if (children.length === 0) width = 1;
@@ -95,6 +116,8 @@ export function GenealogyTree({ rootId }: { rootId?: string }) {
           status: node.status,
           date: node.created_at,
           root: isRoot,
+          mobile: node.mobile,
+          depth: depth,
         },
       });
       for (const ch of children) {

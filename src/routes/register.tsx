@@ -10,19 +10,23 @@ import { Network } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 
 export const Route = createFileRoute("/register")({
-  head: () => ({ meta: [{ title: "Sign up — Boutify" }] }),
+  validateSearch: (search: Record<string, unknown>): { ref?: string } => {
+    return {
+      ref: search.ref as string | undefined,
+    }
+  },
   component: Register,
 });
 
 function Register() {
   const nav = useNavigate();
+  const search = Route.useSearch();
   const { user, loading } = useAuth();
   const [tab, setTab] = useState<"customer" | "boutique_owner">("customer");
   const [fullName, setFullName] = useState("");
-  const [email, setEmail] = useState("");
   const [mobile, setMobile] = useState("");
   const [password, setPassword] = useState("");
-  const [referral, setReferral] = useState("");
+  const [referral, setReferral] = useState(search.ref ?? "");
   const [boutiqueName, setBoutiqueName] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -33,11 +37,12 @@ function Register() {
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setBusy(true);
+    const email = `${mobile.replace(/\D/g, "")}@boutify.app`;
     const { error } = await supabase.auth.signUp({
       email,
       password,
       options: {
-        emailRedirectTo: `${window.location.origin}/app`,
+        emailRedirectTo: `${window.location.origin}${window.location.pathname}#/app`,
         data: {
           full_name: fullName,
           mobile,
@@ -86,12 +91,8 @@ function Register() {
               </div>
             )}
             <div className="space-y-2">
-              <Label htmlFor="em">Email</Label>
-              <Input id="em" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="mob">Mobile</Label>
-              <Input id="mob" type="tel" value={mobile} onChange={(e) => setMobile(e.target.value)} />
+              <Label htmlFor="mob">Mobile number</Label>
+              <Input id="mob" type="tel" required placeholder="e.g. 1234567890" value={mobile} onChange={(e) => setMobile(e.target.value)} />
             </div>
             <div className="space-y-2">
               <Label htmlFor="pw">Password</Label>

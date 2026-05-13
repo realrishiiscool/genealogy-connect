@@ -9,14 +9,13 @@ import { toast } from "sonner";
 import { Network } from "lucide-react";
 
 export const Route = createFileRoute("/login")({
-  head: () => ({ meta: [{ title: "Login — Boutify" }] }),
   component: Login,
 });
 
 function Login() {
   const nav = useNavigate();
   const { user, loading } = useAuth();
-  const [email, setEmail] = useState("");
+  const [mobile, setMobile] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -27,6 +26,7 @@ function Login() {
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setBusy(true);
+    const email = `${mobile.replace(/\D/g, "")}@boutify.app`;
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     setBusy(false);
     if (error) return toast.error(error.message);
@@ -48,8 +48,8 @@ function Login() {
           <p className="mt-1 text-sm text-muted-foreground">Sign in to your account</p>
           <form onSubmit={onSubmit} className="mt-6 space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input id="email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
+              <Label htmlFor="mobile">Mobile number</Label>
+              <Input id="mobile" type="tel" required placeholder="e.g. 1234567890" value={mobile} onChange={(e) => setMobile(e.target.value)} />
             </div>
             <div className="space-y-2">
               <Label htmlFor="password">Password</Label>
