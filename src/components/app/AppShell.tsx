@@ -3,9 +3,10 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Network, LayoutDashboard, GitBranch, Users, Settings, LogOut, Store } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { type ReactNode } from "react";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export function AppShell({ children }: { children: ReactNode }) {
-  const { profile, signOut } = useAuth();
+  const { profile, signOut, loading } = useAuth();
   const nav = useNavigate();
   const path = useRouterState({ select: (s) => s.location.pathname });
 
@@ -13,17 +14,21 @@ export function AppShell({ children }: { children: ReactNode }) {
   const items: { to: string; label: string; icon: any }[] = [
     { to: "/app", label: "Dashboard", icon: LayoutDashboard },
   ];
-  if (role === "customer") {
-    items.push({ to: "/app/network", label: "My Network", icon: GitBranch });
+
+  if (profile) {
+    if (role === "customer") {
+      items.push({ to: "/app/network", label: "My Network", icon: GitBranch });
+    }
+    if (role === "admin") {
+      items.push({ to: "/users", label: "Users", icon: Users });
+      items.push({ to: "/app/network", label: "Genealogy", icon: GitBranch });
+    }
+    if (role === "boutique_owner") {
+      items.push({ to: "/app/customers", label: "Customers", icon: Users });
+      items.push({ to: "/app/boutique", label: "Boutique", icon: Store });
+    }
   }
-  if (role === "admin") {
-    items.push({ to: "/users", label: "Users", icon: Users });
-    items.push({ to: "/app/network", label: "Genealogy", icon: GitBranch });
-  }
-  if (role === "boutique_owner") {
-    items.push({ to: "/app/customers", label: "Customers", icon: Users });
-    items.push({ to: "/app/boutique", label: "Boutique", icon: Store });
-  }
+  
   items.push({ to: "/app/settings", label: "Settings", icon: Settings });
 
   return (
@@ -56,13 +61,25 @@ export function AppShell({ children }: { children: ReactNode }) {
         </nav>
         <div className="border-t border-sidebar-border p-4">
           <div className="mb-3 flex items-center gap-3 rounded-lg p-2">
-            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-primary text-sm font-bold text-primary-foreground">
-              {profile?.full_name?.[0]?.toUpperCase() ?? "?"}
-            </div>
-            <div className="min-w-0 flex-1">
-              <div className="truncate text-sm font-semibold">{profile?.full_name}</div>
-              <div className="truncate text-xs text-muted-foreground capitalize">{role?.replace("_", " ")}</div>
-            </div>
+            {!profile && loading ? (
+              <>
+                <Skeleton className="h-9 w-9 rounded-full" />
+                <div className="space-y-1 flex-1">
+                  <Skeleton className="h-4 w-24" />
+                  <Skeleton className="h-3 w-16" />
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-primary text-sm font-bold text-primary-foreground">
+                  {profile?.full_name?.[0]?.toUpperCase() ?? "?"}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="truncate text-sm font-semibold">{profile?.full_name ?? "User"}</div>
+                  <div className="truncate text-xs text-muted-foreground capitalize">{role?.replace("_", " ") ?? "Loading..."}</div>
+                </div>
+              </>
+            )}
           </div>
           <Button
             variant="ghost"

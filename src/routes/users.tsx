@@ -7,7 +7,8 @@ import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { useAuth, type Profile } from "@/contexts/AuthContext";
 import { AppShell } from "@/components/app/AppShell";
-import { Trash2 } from "lucide-react";
+import { Trash2, LogOut, Users } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -25,7 +26,7 @@ export const Route = createFileRoute("/users")({
 });
 
 function UsersPage() {
-  const { user, profile, loading: authLoading } = useAuth();
+  const { user, profile, loading: authLoading, signOut } = useAuth();
   const navigate = useNavigate();
   const [users, setUsers] = useState<Profile[]>([]);
   const [loading, setLoading] = useState(true);
@@ -89,13 +90,7 @@ function UsersPage() {
     );
   });
 
-  if (authLoading || !profile || profile.user_type !== "admin") {
-    return (
-      <div className="flex min-h-screen items-center justify-center">
-        <div className="animate-pulse text-muted-foreground">Checking permissions...</div>
-      </div>
-    );
-  }
+  const isInitialLoading = authLoading || (loading && users.length === 0);
 
   return (
     <AppShell>
@@ -105,129 +100,164 @@ function UsersPage() {
             <h1 className="text-3xl font-bold">Admin: User Management</h1>
             <p className="mt-1 text-muted-foreground">View and manage all users across the platform.</p>
           </div>
-          <Button onClick={load} variant="outline" size="sm" disabled={loading}>
-            {loading ? "Refreshing..." : "Refresh"}
-          </Button>
-        </div>
-
-        <div className="flex flex-wrap gap-3">
-          <Input 
-            className="max-w-xs" 
-            placeholder="Search name, email or mobile…" 
-            value={q} 
-            onChange={(e) => setQ(e.target.value)} 
-          />
-          {(["all", "admin", "boutique_owner", "customer"] as const).map((f) => (
-            <Button 
-              key={f} 
-              variant={filter === f ? "default" : "outline"} 
-              size="sm" 
-              onClick={() => setFilter(f)} 
-              className={filter === f ? "bg-gradient-primary text-primary-foreground" : ""}
-            >
-              {f.replace("_", " ")}
+          <div className="flex gap-2">
+            <Button onClick={load} variant="outline" size="sm" disabled={loading} className="hidden md:flex">
+              {loading ? "Refreshing..." : "Refresh"}
             </Button>
-          ))}
+            <Button 
+              variant="ghost" 
+              size="sm"
+              className="text-muted-foreground hover:text-foreground flex gap-2"
+              onClick={async () => {
+                await signOut();
+                navigate({ to: "/" });
+              }}
+            >
+              <LogOut className="h-4 w-4" /> Sign out
+            </Button>
+          </div>
         </div>
 
-        <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-soft">
-          <table className="w-full text-sm">
-            <thead className="bg-muted/50 text-left text-xs uppercase tracking-wide text-muted-foreground">
-              <tr>
-                <th className="px-4 py-3">Name & Email</th>
-                <th className="px-4 py-3">Mobile</th>
-                <th className="px-4 py-3">Type</th>
-                <th className="px-4 py-3">Status</th>
-                <th className="px-4 py-3">Joined</th>
-                <th className="px-4 py-3 text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border">
-              {filtered.map((u) => (
-                <tr key={u.id} className="hover:bg-muted/30 transition-colors">
-                  <td className="px-4 py-3">
-                    <div className="font-medium text-foreground">{u.full_name}</div>
-                    <div className="text-xs text-muted-foreground">{u.email}</div>
-                  </td>
-                  <td className="px-4 py-3 text-muted-foreground">{u.mobile ?? "—"}</td>
-                  <td className="px-4 py-3 capitalize">
-                    <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium ${
-                      u.user_type === "admin" ? "bg-purple-100 text-purple-700" :
-                      u.user_type === "boutique_owner" ? "bg-blue-100 text-blue-700" :
-                      "bg-gray-100 text-gray-700"
-                    }`}>
-                      {u.user_type.replace("_", " ")}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3">
-                    <span className={`inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-medium ${
-                      u.status === "active" ? "bg-emerald-100 text-emerald-700" :
-                      u.status === "pending" ? "bg-amber-100 text-amber-700" :
-                      "bg-rose-100 text-rose-700"
-                    }`}>
-                      <span className={`h-1.5 w-1.5 rounded-full ${
-                        u.status === "active" ? "bg-emerald-500" :
-                        u.status === "pending" ? "bg-amber-500" :
-                        "bg-rose-500"
-                      }`} />
-                      {u.status}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-muted-foreground text-xs">
-                    {u.created_at ? new Date(u.created_at).toLocaleDateString() : "—"}
-                  </td>
-                  <td className="px-4 py-3 text-right">
-                    <div className="flex justify-end gap-2">
-                      {u.status === "active" ? (
-                        <Button size="sm" variant="outline" onClick={() => updateStatus(u.id, "restricted")}>Restrict</Button>
-                      ) : (
-                        <Button size="sm" variant="outline" onClick={() => updateStatus(u.id, "active")}>Activate</Button>
-                      )}
-                      
-                      {u.id !== user?.uid && (
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <Button size="sm" variant="ghost" className="text-destructive hover:bg-destructive/10 hover:text-destructive">
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                              <AlertDialogDescription>
-                                This will permanently delete <strong>{u.full_name}</strong>'s profile from the database. 
-                                This action cannot be undone.
-                              </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>Cancel</AlertDialogCancel>
-                              <AlertDialogAction 
-                                onClick={() => deleteUser(u.id)}
-                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                              >
-                                Delete User
-                              </AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
-                      )}
-                    </div>
-                  </td>
-                </tr>
+        {isInitialLoading ? (
+          <div className="space-y-4">
+            <div className="flex gap-3">
+              <Skeleton className="h-10 w-64" />
+              <Skeleton className="h-10 w-24" />
+              <Skeleton className="h-10 w-24" />
+            </div>
+            <div className="rounded-2xl border border-border bg-card overflow-hidden">
+              <div className="p-4 border-b border-border bg-muted/50">
+                <Skeleton className="h-4 w-full" />
+              </div>
+              {[1, 2, 3, 4, 5].map(i => (
+                <div key={i} className="p-4 border-b border-border last:border-0">
+                  <Skeleton className="h-8 w-full" />
+                </div>
               ))}
-              {!filtered.length && !loading && (
-                <tr>
-                  <td colSpan={6} className="px-4 py-12 text-center text-muted-foreground">
-                    <div className="flex flex-col items-center gap-2">
-                      <Users className="h-8 w-8 opacity-20" />
-                      <p>No users found matching your search.</p>
-                    </div>
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+            </div>
+          </div>
+        ) : (
+          <>
+            <div className="flex flex-wrap gap-3">
+              <Input 
+                className="max-w-xs" 
+                placeholder="Search name, email or mobile…" 
+                value={q} 
+                onChange={(e) => setQ(e.target.value)} 
+              />
+              {(["all", "admin", "boutique_owner", "customer"] as const).map((f) => (
+                <Button 
+                  key={f} 
+                  variant={filter === f ? "default" : "outline"} 
+                  size="sm" 
+                  onClick={() => setFilter(f)} 
+                  className={filter === f ? "bg-gradient-primary text-primary-foreground" : ""}
+                >
+                  {f.replace("_", " ")}
+                </Button>
+              ))}
+            </div>
+
+            <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-soft">
+              <table className="w-full text-sm">
+                <thead className="bg-muted/50 text-left text-xs uppercase tracking-wide text-muted-foreground">
+                  <tr>
+                    <th className="px-4 py-3">Name & Email</th>
+                    <th className="px-4 py-3">Mobile</th>
+                    <th className="px-4 py-3">Type</th>
+                    <th className="px-4 py-3">Status</th>
+                    <th className="px-4 py-3">Joined</th>
+                    <th className="px-4 py-3 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {filtered.map((u) => (
+                    <tr key={u.id} className="hover:bg-muted/30 transition-colors">
+                      <td className="px-4 py-3">
+                        <div className="font-medium text-foreground">{u.full_name}</div>
+                        <div className="text-xs text-muted-foreground">{u.email}</div>
+                      </td>
+                      <td className="px-4 py-3 text-muted-foreground">{u.mobile ?? "—"}</td>
+                      <td className="px-4 py-3 capitalize">
+                        <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium ${
+                          u.user_type === "admin" ? "bg-purple-100 text-purple-700" :
+                          u.user_type === "boutique_owner" ? "bg-blue-100 text-blue-700" :
+                          "bg-gray-100 text-gray-700"
+                        }`}>
+                          {u.user_type.replace("_", " ")}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className={`inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-medium ${
+                          u.status === "active" ? "bg-emerald-100 text-emerald-700" :
+                          u.status === "pending" ? "bg-amber-100 text-amber-700" :
+                          "bg-rose-100 text-rose-700"
+                        }`}>
+                          <span className={`h-1.5 w-1.5 rounded-full ${
+                            u.status === "active" ? "bg-emerald-500" :
+                            u.status === "pending" ? "bg-amber-500" :
+                            "bg-rose-500"
+                          }`} />
+                          {u.status}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-muted-foreground text-xs">
+                        {u.created_at ? new Date(u.created_at).toLocaleDateString() : "—"}
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <div className="flex justify-end gap-2">
+                          {u.status === "active" ? (
+                            <Button size="sm" variant="outline" onClick={() => updateStatus(u.id, "restricted")}>Restrict</Button>
+                          ) : (
+                            <Button size="sm" variant="outline" onClick={() => updateStatus(u.id, "active")}>Activate</Button>
+                          )}
+                          
+                          {u.id !== user?.uid && (
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button size="sm" variant="ghost" className="text-destructive hover:bg-destructive/10 hover:text-destructive">
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    This will permanently delete <strong>{u.full_name}</strong>'s profile from the database. 
+                                    This action cannot be undone.
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                  <AlertDialogAction 
+                                    onClick={() => deleteUser(u.id)}
+                                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                  >
+                                    Delete User
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                  {!filtered.length && !loading && (
+                    <tr>
+                      <td colSpan={6} className="px-4 py-12 text-center text-muted-foreground">
+                        <div className="flex flex-col items-center gap-2">
+                          <Users className="h-8 w-8 opacity-20" />
+                          <p>No users found matching your search.</p>
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
       </div>
     </AppShell>
   );
