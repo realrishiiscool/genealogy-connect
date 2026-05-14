@@ -17,7 +17,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     items.push({ to: "/app/network", label: "My Network", icon: GitBranch });
   }
   if (role === "admin") {
-    items.push({ to: "/app/users", label: "Users", icon: Users });
+    items.push({ to: "/users", label: "Users", icon: Users });
     items.push({ to: "/app/network", label: "Genealogy", icon: GitBranch });
   }
   if (role === "boutique_owner") {

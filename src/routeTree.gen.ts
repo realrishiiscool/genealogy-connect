@@ -9,17 +9,22 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as UsersRouteImport } from './routes/users'
 import { Route as RegisterRouteImport } from './routes/register'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as AppRouteImport } from './routes/app'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AppIndexRouteImport } from './routes/app.index'
-import { Route as AppUsersRouteImport } from './routes/app.users'
 import { Route as AppSettingsRouteImport } from './routes/app.settings'
 import { Route as AppNetworkRouteImport } from './routes/app.network'
 import { Route as AppCustomersRouteImport } from './routes/app.customers'
 import { Route as AppBoutiqueRouteImport } from './routes/app.boutique'
 
+const UsersRoute = UsersRouteImport.update({
+  id: '/users',
+  path: '/users',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const RegisterRoute = RegisterRouteImport.update({
   id: '/register',
   path: '/register',
@@ -43,11 +48,6 @@ const IndexRoute = IndexRouteImport.update({
 const AppIndexRoute = AppIndexRouteImport.update({
   id: '/',
   path: '/',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppUsersRoute = AppUsersRouteImport.update({
-  id: '/users',
-  path: '/users',
   getParentRoute: () => AppRoute,
 } as any)
 const AppSettingsRoute = AppSettingsRouteImport.update({
@@ -76,22 +76,22 @@ export interface FileRoutesByFullPath {
   '/app': typeof AppRouteWithChildren
   '/login': typeof LoginRoute
   '/register': typeof RegisterRoute
+  '/users': typeof UsersRoute
   '/app/boutique': typeof AppBoutiqueRoute
   '/app/customers': typeof AppCustomersRoute
   '/app/network': typeof AppNetworkRoute
   '/app/settings': typeof AppSettingsRoute
-  '/app/users': typeof AppUsersRoute
   '/app/': typeof AppIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/register': typeof RegisterRoute
+  '/users': typeof UsersRoute
   '/app/boutique': typeof AppBoutiqueRoute
   '/app/customers': typeof AppCustomersRoute
   '/app/network': typeof AppNetworkRoute
   '/app/settings': typeof AppSettingsRoute
-  '/app/users': typeof AppUsersRoute
   '/app': typeof AppIndexRoute
 }
 export interface FileRoutesById {
@@ -100,11 +100,11 @@ export interface FileRoutesById {
   '/app': typeof AppRouteWithChildren
   '/login': typeof LoginRoute
   '/register': typeof RegisterRoute
+  '/users': typeof UsersRoute
   '/app/boutique': typeof AppBoutiqueRoute
   '/app/customers': typeof AppCustomersRoute
   '/app/network': typeof AppNetworkRoute
   '/app/settings': typeof AppSettingsRoute
-  '/app/users': typeof AppUsersRoute
   '/app/': typeof AppIndexRoute
 }
 export interface FileRouteTypes {
@@ -114,22 +114,22 @@ export interface FileRouteTypes {
     | '/app'
     | '/login'
     | '/register'
+    | '/users'
     | '/app/boutique'
     | '/app/customers'
     | '/app/network'
     | '/app/settings'
-    | '/app/users'
     | '/app/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/login'
     | '/register'
+    | '/users'
     | '/app/boutique'
     | '/app/customers'
     | '/app/network'
     | '/app/settings'
-    | '/app/users'
     | '/app'
   id:
     | '__root__'
@@ -137,11 +137,11 @@ export interface FileRouteTypes {
     | '/app'
     | '/login'
     | '/register'
+    | '/users'
     | '/app/boutique'
     | '/app/customers'
     | '/app/network'
     | '/app/settings'
-    | '/app/users'
     | '/app/'
   fileRoutesById: FileRoutesById
 }
@@ -150,10 +150,18 @@ export interface RootRouteChildren {
   AppRoute: typeof AppRouteWithChildren
   LoginRoute: typeof LoginRoute
   RegisterRoute: typeof RegisterRoute
+  UsersRoute: typeof UsersRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/users': {
+      id: '/users'
+      path: '/users'
+      fullPath: '/users'
+      preLoaderRoute: typeof UsersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/register': {
       id: '/register'
       path: '/register'
@@ -187,13 +195,6 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/app/'
       preLoaderRoute: typeof AppIndexRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/users': {
-      id: '/app/users'
-      path: '/users'
-      fullPath: '/app/users'
-      preLoaderRoute: typeof AppUsersRouteImport
       parentRoute: typeof AppRoute
     }
     '/app/settings': {
@@ -232,7 +233,6 @@ interface AppRouteChildren {
   AppCustomersRoute: typeof AppCustomersRoute
   AppNetworkRoute: typeof AppNetworkRoute
   AppSettingsRoute: typeof AppSettingsRoute
-  AppUsersRoute: typeof AppUsersRoute
   AppIndexRoute: typeof AppIndexRoute
 }
 
@@ -241,7 +241,6 @@ const AppRouteChildren: AppRouteChildren = {
   AppCustomersRoute: AppCustomersRoute,
   AppNetworkRoute: AppNetworkRoute,
   AppSettingsRoute: AppSettingsRoute,
-  AppUsersRoute: AppUsersRoute,
   AppIndexRoute: AppIndexRoute,
 }
 
@@ -252,6 +251,7 @@ const rootRouteChildren: RootRouteChildren = {
   AppRoute: AppRouteWithChildren,
   LoginRoute: LoginRoute,
   RegisterRoute: RegisterRoute,
+  UsersRoute: UsersRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

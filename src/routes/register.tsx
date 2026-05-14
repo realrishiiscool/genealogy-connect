@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { auth, db } from "@/lib/firebase";
 import { createUserWithEmailAndPassword } from "firebase/auth";
-import { doc, setDoc } from "firebase/firestore";
+import { doc, setDoc, collection, query, where, getDocs } from "firebase/firestore";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { Network } from "lucide-react";
@@ -24,13 +24,17 @@ function Register() {
   const nav = useNavigate();
   const search = Route.useSearch();
   const { user, loading } = useAuth();
-  const [tab, setTab] = useState<"customer" | "boutique_owner">("customer");
+  const [tab, setTab] = useState<"customer" | "boutique_owner" | "admin">("customer");
   const [fullName, setFullName] = useState("");
   const [mobile, setMobile] = useState("");
   const [password, setPassword] = useState("");
   const [referral, setReferral] = useState(search.ref ?? "");
   const [boutiqueName, setBoutiqueName] = useState("");
   const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    if (search.ref) setReferral(search.ref);
+  }, [search.ref]);
 
   useEffect(() => {
     if (!loading && user) nav({ to: "/app" });
@@ -41,15 +45,32 @@ function Register() {
     setBusy(true);
     const email = `${mobile.replace(/\D/g, "")}@boutify.app`;
     try {
+      let referredBy = null;
+      if (tab === "customer" && referral.trim()) {
+        const q = query(collection(db, "profiles"), where("referral_code", "==", referral.trim().toUpperCase()));
+        const snapshot = await getDocs(q);
+        if (!snapshot.empty) {
+          referredBy = snapshot.docs[0].id;
+        } else {
+          toast.error("Invalid referral code");
+          setBusy(false);
+          return;
+        }
+      }
+
       const { user: fbUser } = await createUserWithEmailAndPassword(auth, email, password);
+      const newReferralCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+
       await setDoc(doc(db, "profiles", fbUser.uid), {
         full_name: fullName,
         email,
         mobile,
         user_type: tab,
+        referral_code: newReferralCode,
+        referred_by: referredBy,
         referral_code_input: referral.trim() || null,
         boutique_name: tab === "boutique_owner" ? boutiqueName : null,
-        status: "pending",
+        status: tab === "admin" ? "active" : "pending",
         created_at: new Date().toISOString()
       });
       toast.success("Account created! Welcome.");
@@ -75,9 +96,10 @@ function Register() {
           <p className="mt-1 text-sm text-muted-foreground">Start growing your network today</p>
 
           <Tabs value={tab} onValueChange={(v) => setTab(v as typeof tab)} className="mt-6">
-            <TabsList className="grid w-full grid-cols-2">
+            <TabsList className="grid w-full grid-cols-3">
               <TabsTrigger value="customer">Customer</TabsTrigger>
-              <TabsTrigger value="boutique_owner">Boutique Owner</TabsTrigger>
+              <TabsTrigger value="boutique_owner">Owner</TabsTrigger>
+              <TabsTrigger value="admin">Admin</TabsTrigger>
             </TabsList>
             <TabsContent value={tab} className="mt-0" />
           </Tabs>
