@@ -3,7 +3,9 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { supabase } from "@/integrations/supabase/client";
+import { auth, db } from "@/lib/firebase";
+import { createUserWithEmailAndPassword } from "firebase/auth";
+import { doc, setDoc } from "firebase/firestore";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { Network } from "lucide-react";
@@ -38,24 +40,25 @@ function Register() {
     e.preventDefault();
     setBusy(true);
     const email = `${mobile.replace(/\D/g, "")}@boutify.app`;
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        emailRedirectTo: `${window.location.origin}${window.location.pathname}#/app`,
-        data: {
-          full_name: fullName,
-          mobile,
-          user_type: tab,
-          referral_code_input: referral.trim() || null,
-          boutique_name: tab === "boutique_owner" ? boutiqueName : null,
-        },
-      },
-    });
-    setBusy(false);
-    if (error) return toast.error(error.message);
-    toast.success("Account created! Welcome.");
-    nav({ to: "/app" });
+    try {
+      const { user: fbUser } = await createUserWithEmailAndPassword(auth, email, password);
+      await setDoc(doc(db, "profiles", fbUser.uid), {
+        full_name: fullName,
+        email,
+        mobile,
+        user_type: tab,
+        referral_code_input: referral.trim() || null,
+        boutique_name: tab === "boutique_owner" ? boutiqueName : null,
+        status: "pending",
+        created_at: new Date().toISOString()
+      });
+      toast.success("Account created! Welcome.");
+      nav({ to: "/app" });
+    } catch (error: any) {
+      toast.error(error.message);
+    } finally {
+      setBusy(false);
+    }
   };
 
   return (

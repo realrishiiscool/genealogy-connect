@@ -1,7 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useAuth } from "@/contexts/AuthContext";
 import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { db } from "@/lib/firebase";
+import { collection, getDocs, doc, getDoc } from "firebase/firestore";
 import { StatCard } from "@/components/app/AppShell";
 import { Button } from "@/components/ui/button";
 import { Copy, Share2 } from "lucide-react";
@@ -22,19 +23,19 @@ function Dashboard() {
 
   useEffect(() => {
     (async () => {
-      const { data: all } = await supabase.from("profiles").select("id, user_type, status, referred_by, created_at");
-      const list = all ?? [];
-      const customers = list.filter((u) => u.user_type === "customer");
-      const owners = list.filter((u) => u.user_type === "boutique_owner");
-      const pending = list.filter((u) => u.status === "pending").length;
-      const active = list.filter((u) => u.status === "active").length;
-      const referrals = customers.filter((u) => u.referred_by).length;
+      const snapshot = await getDocs(collection(db, "profiles"));
+      const list = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as any));
+      const customers = list.filter((u: any) => u.user_type === "customer");
+      const owners = list.filter((u: any) => u.user_type === "boutique_owner");
+      const pending = list.filter((u: any) => u.status === "pending").length;
+      const active = list.filter((u: any) => u.status === "active").length;
+      const referrals = customers.filter((u: any) => u.referred_by).length;
 
       // build downline for current customer
       let direct = 0, network = 0;
       if (role === "customer") {
         const map = new Map<string, string[]>();
-        customers.forEach((c) => {
+        customers.forEach((c: any) => {
           if (c.referred_by) {
             if (!map.has(c.referred_by)) map.set(c.referred_by, []);
             map.get(c.referred_by)!.push(c.id);
@@ -56,7 +57,8 @@ function Dashboard() {
         network = visited.size;
         // sponsor
         if (profile!.referred_by) {
-          const { data: p } = await supabase.from("profiles").select("full_name").eq("id", profile!.referred_by).maybeSingle();
+          const pSnap = await getDoc(doc(db, "profiles", profile!.referred_by));
+          const p = pSnap.exists() ? pSnap.data() : null;
           setParent(p?.full_name ?? null);
         }
       }
@@ -73,7 +75,7 @@ function Dashboard() {
         const d = new Date(now);
         d.setDate(d.getDate() - i);
         const key = d.toISOString().slice(0, 10);
-        const count = list.filter((u) => u.created_at.slice(0, 10) <= key).length;
+        const count = list.filter((u: any) => u.created_at?.slice(0, 10) <= key).length;
         days.push({ day: d.toLocaleDateString(undefined, { month: "short", day: "numeric" }), users: count });
       }
       setSeries(days);

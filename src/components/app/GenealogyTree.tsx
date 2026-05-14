@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { ReactFlow, Background, Controls, MiniMap, type Node, type Edge, MarkerType } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
-import { supabase } from "@/integrations/supabase/client";
+import { db } from "@/lib/firebase";
+import { collection, query, where, getDocs } from "firebase/firestore";
 import type { Profile } from "@/contexts/AuthContext";
 
 type Customer = Pick<Profile, "id" | "full_name" | "referral_code" | "referred_by" | "status" | "created_at" | "mobile">;
@@ -63,12 +64,16 @@ export function GenealogyTree({ rootId }: { rootId?: string }) {
 
   useEffect(() => {
     (async () => {
-      const { data } = await supabase
-        .from("profiles")
-        .select("id, full_name, referral_code, referred_by, status, created_at, mobile")
-        .eq("user_type", "customer");
-      setCustomers((data ?? []) as Customer[]);
-      setLoading(false);
+      try {
+        const q = query(collection(db, "profiles"), where("user_type", "==", "customer"));
+        const snapshot = await getDocs(q);
+        const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Customer));
+        setCustomers(data);
+      } catch (error) {
+        console.error("Error fetching network:", error);
+      } finally {
+        setLoading(false);
+      }
     })();
   }, []);
 
@@ -76,7 +81,7 @@ export function GenealogyTree({ rootId }: { rootId?: string }) {
     if (!customers.length) return { nodes: [] as Node[], edges: [] as Edge[] };
     const byParent = new Map<string | null, Customer[]>();
     customers.forEach((c) => {
-      const key = c.referred_by;
+      const key = c.referred_by || null;
       if (!byParent.has(key)) byParent.set(key, []);
       byParent.get(key)!.push(c);
     });

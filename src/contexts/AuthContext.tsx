@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
-import type { Session, User } from "@supabase/supabase-js";
-import { supabase } from "@/integrations/supabase/client";
+import { onAuthStateChanged, signOut as fbSignOut, type User as FbUser } from "firebase/auth";
+import { doc, getDoc } from "firebase/firestore";
+import { auth, db } from "@/lib/firebase";
 
 export type Profile = {
   id: string;
@@ -16,8 +17,8 @@ export type Profile = {
 };
 
 type Ctx = {
-  user: User | null;
-  session: Session | null;
+  user: FbUser | null;
+  session: any | null;
   profile: Profile | null;
   loading: boolean;
   signOut: () => Promise<void>;
@@ -27,33 +28,39 @@ type Ctx = {
 const AuthCtx = createContext<Ctx | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
-  const [session, setSession] = useState<Session | null>(null);
+  const [user, setUser] = useState<FbUser | null>(null);
+  const [session, setSession] = useState<any | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
 
   const loadProfile = async (uid: string) => {
-    const { data } = await supabase.from("profiles").select("*").eq("id", uid).maybeSingle();
-    setProfile(data as Profile | null);
-  };
-
-  useEffect(() => {
-    const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => {
-      setSession(s);
-      setUser(s?.user ?? null);
-      if (s?.user) {
-        setTimeout(() => loadProfile(s.user.id), 0);
+    try {
+      const docRef = doc(db, "profiles", uid);
+      const docSnap = await getDoc(docRef);
+      if (docSnap.exists()) {
+        setProfile({ id: docSnap.id, ...docSnap.data() } as Profile);
       } else {
         setProfile(null);
       }
+    } catch (err) {
+      console.error(err);
+      setProfile(null);
+    }
+  };
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (fbUser) => {
+      setUser(fbUser);
+      setSession(fbUser ? { user: fbUser } : null);
+      if (fbUser) {
+        await loadProfile(fbUser.uid);
+      } else {
+        setProfile(null);
+      }
+      setLoading(false);
     });
-    supabase.auth.getSession().then(({ data: { session: s } }) => {
-      setSession(s);
-      setUser(s?.user ?? null);
-      if (s?.user) loadProfile(s.user.id).finally(() => setLoading(false));
-      else setLoading(false);
-    });
-    return () => sub.subscription.unsubscribe();
+
+    return () => unsubscribe();
   }, []);
 
   return (
@@ -64,10 +71,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         profile,
         loading,
         signOut: async () => {
-          await supabase.auth.signOut();
+          await fbSignOut(auth);
         },
         refreshProfile: async () => {
-          if (user) await loadProfile(user.id);
+          if (user) await loadProfile(user.uid);
         },
       }}
     >

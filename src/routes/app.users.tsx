@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { db } from "@/lib/firebase";
+import { collection, getDocs, doc, updateDoc, query, orderBy } from "firebase/firestore";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -16,16 +17,25 @@ function UsersPage() {
   const [filter, setFilter] = useState<"all" | "customer" | "boutique_owner">("all");
 
   const load = async () => {
-    const { data } = await supabase.from("profiles").select("*").order("created_at", { ascending: false });
-    setUsers((data ?? []) as Profile[]);
+    try {
+      const qQuery = query(collection(db, "profiles"), orderBy("created_at", "desc"));
+      const snapshot = await getDocs(qQuery);
+      const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Profile));
+      setUsers(data);
+    } catch (err) {
+      console.error(err);
+    }
   };
   useEffect(() => { load(); }, []);
 
   const updateStatus = async (id: string, status: "active" | "restricted") => {
-    const { error } = await supabase.from("profiles").update({ status }).eq("id", id);
-    if (error) return toast.error(error.message);
-    toast.success(`User ${status}`);
-    load();
+    try {
+      await updateDoc(doc(db, "profiles", id), { status });
+      toast.success(`User ${status}`);
+      load();
+    } catch (error: any) {
+      toast.error(error.message);
+    }
   };
 
   const filtered = users.filter((u) => {

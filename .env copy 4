@@ -1,9 +1,6 @@
-SUPABASE_URL="https://vkpmueuawanigmehzrdx.supabase.co"
-
-SUPABASE_PUBLISHABLE_KEY="sb_publishable_2HFt56IjT0cTo0NPLYPbIw_jamTGYQZ"
-
-VITE_SUPABASE_URL="https://vkpmueuawanigmehzrdx.supabase.co"
-
-VITE_SUPABASE_PROJECT_ID="vkpmueuawanigmehzrdx"
-
-VITE_SUPABASE_PUBLISHABLE_KEY="sb_publishable_2HFt56IjT0cTo0NPLYPbIw_jamTGYQZ"
+VITE_FIREBASE_API_KEY=AIza...
+VITE_FIREBASE_AUTH_DOMAIN=boutify-461fc.firebaseapp.com
+VITE_FIREBASE_PROJECT_ID=boutify-461fc
+VITE_FIREBASE_STORAGE_BUCKET=boutify-461fc.appspot.com
+VITE_FIREBASE_MESSAGING_SENDER_ID=985766329905
+VITE_FIREBASE_APP_ID=1:985766329905:web:xxxxxxx

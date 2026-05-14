@@ -3,7 +3,8 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { supabase } from "@/integrations/supabase/client";
+import { auth } from "@/lib/firebase";
+import { signInWithEmailAndPassword } from "firebase/auth";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { Network } from "lucide-react";
@@ -27,11 +28,15 @@ function Login() {
     e.preventDefault();
     setBusy(true);
     const email = `${mobile.replace(/\D/g, "")}@boutify.app`;
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    setBusy(false);
-    if (error) return toast.error(error.message);
-    toast.success("Welcome back!");
-    nav({ to: "/app" });
+    try {
+      await signInWithEmailAndPassword(auth, email, password);
+      toast.success("Welcome back!");
+      nav({ to: "/app" });
+    } catch (error: any) {
+      toast.error(error.message);
+    } finally {
+      setBusy(false);
+    }
   };
 
   return (

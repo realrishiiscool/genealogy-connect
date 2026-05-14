@@ -4,7 +4,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { supabase } from "@/integrations/supabase/client";
+import { db } from "@/lib/firebase";
+import { doc, updateDoc } from "firebase/firestore";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/app/boutique")({
@@ -17,11 +18,15 @@ function BoutiquePage() {
   const [busy, setBusy] = useState(false);
   const save = async () => {
     setBusy(true);
-    const { error } = await supabase.from("profiles").update({ boutique_name: name }).eq("id", profile!.id);
-    setBusy(false);
-    if (error) return toast.error(error.message);
-    toast.success("Boutique updated");
-    refreshProfile();
+    try {
+      await updateDoc(doc(db, "profiles", profile!.id), { boutique_name: name });
+      toast.success("Boutique updated");
+      refreshProfile();
+    } catch (error: any) {
+      toast.error(error.message);
+    } finally {
+      setBusy(false);
+    }
   };
   return (
     <div className="space-y-6 p-6 md:p-10">

@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { db } from "@/lib/firebase";
+import { collection, query, where, orderBy, getDocs } from "firebase/firestore";
 import type { Profile } from "@/contexts/AuthContext";
 
 export const Route = createFileRoute("/app/customers")({
@@ -10,8 +11,11 @@ export const Route = createFileRoute("/app/customers")({
 function CustomersPage() {
   const [customers, setCustomers] = useState<Profile[]>([]);
   useEffect(() => {
-    supabase.from("profiles").select("*").eq("user_type", "customer").order("created_at", { ascending: false })
-      .then(({ data }) => setCustomers((data ?? []) as Profile[]));
+    const q = query(collection(db, "profiles"), where("user_type", "==", "customer"), orderBy("created_at", "desc"));
+    getDocs(q).then(snapshot => {
+      const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Profile));
+      setCustomers(data);
+    });
   }, []);
   return (
     <div className="space-y-6 p-6 md:p-10">
