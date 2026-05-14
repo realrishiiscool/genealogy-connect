@@ -25,8 +25,8 @@ function Dashboard() {
   const role = profile?.user_type;
 
   useEffect(() => {
-    if (!profile) return;
-    
+    if (!profile || !role) return;
+
     (async () => {
       try {
         setDataLoading(true);
