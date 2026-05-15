@@ -1,8 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useAuth } from "@/contexts/AuthContext";
 import { useEffect, useState } from "react";
-import { db } from "@/lib/firebase";
-import { collection, getDocs, doc, getDoc } from "firebase/firestore";
 import { StatCard } from "@/components/app/AppShell";
 import { Button } from "@/components/ui/button";
 import { Copy, Share2, LogOut } from "lucide-react";
@@ -15,7 +13,7 @@ export const Route = createFileRoute("/app/")({
 });
 
 function Dashboard() {
-  const { profile, loading: authLoading, signOut } = useAuth();
+  const { profile, loading: authLoading, signOut, apiBase } = useAuth();
   const nav = useNavigate();
   const [dataLoading, setDataLoading] = useState(true);
   const [stats, setStats] = useState({ users: 0, customers: 0, owners: 0, referrals: 0, pending: 0, active: 0, direct: 0, network: 0 });
@@ -30,52 +28,26 @@ function Dashboard() {
     (async () => {
       try {
         setDataLoading(true);
-        const snapshot = await getDocs(collection(db, "profiles"));
-        const list = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as any));
-        const customers = list.filter((u: any) => u.user_type === "customer");
-        const owners = list.filter((u: any) => u.user_type === "boutique_owner");
-        const pending = list.filter((u: any) => u.status === "pending").length;
-        const active = list.filter((u: any) => u.status === "active").length;
-        const referrals = customers.filter((u: any) => u.referred_by).length;
-
-        // build downline for current customer
-        let direct = 0, network = 0;
-        if (role === "customer") {
-          const map = new Map<string, string[]>();
-          customers.forEach((c: any) => {
-            if (c.referred_by) {
-              if (!map.has(c.referred_by)) map.set(c.referred_by, []);
-              map.get(c.referred_by)!.push(c.id);
-            }
-          });
-          const queue = [{ id: profile!.id, depth: 0 }];
-          const visited = new Set<string>();
-          while (queue.length) {
-            const curr = queue.shift()!;
-            for (const ch of map.get(curr.id) ?? []) {
-              if (visited.has(ch)) continue;
-              visited.add(ch);
-              if (curr.depth + 1 < 3) {
-                queue.push({ id: ch, depth: curr.depth + 1 });
-              }
-              if (curr.id === profile!.id) direct++;
-            }
-          }
-          network = visited.size;
-          // sponsor
-          if (profile!.referred_by) {
-            const pSnap = await getDoc(doc(db, "profiles", profile!.referred_by));
-            const p = pSnap.exists() ? pSnap.data() : null;
-            setParent(p?.full_name ?? null);
-          }
-        }
+        const res = await fetch(`${apiBase}/api/dashboard/stats?userId=${profile.id}&role=${role}`);
+        const data = await res.json();
+        
+        if (!res.ok) throw new Error(data.error);
 
         setStats({
-          users: list.length, customers: customers.length, owners: owners.length, referrals,
-          pending, active, direct, network,
+          users: data.usersCount,
+          customers: data.customersCount,
+          owners: data.ownersCount,
+          referrals: data.referralsCount,
+          pending: data.pendingCount,
+          active: data.activeCount,
+          direct: data.directCount,
+          network: data.networkCount,
         });
 
-        // 14-day growth
+        if (data.sponsorName) setParent(data.sponsorName);
+
+        // 14-day growth chart
+        const list = data.allUsers;
         const days: { day: string; users: number }[] = [];
         const now = new Date();
         for (let i = 13; i >= 0; i--) {
@@ -86,8 +58,9 @@ function Dashboard() {
           days.push({ day: d.toLocaleDateString(undefined, { month: "short", day: "numeric" }), users: count });
         }
         setSeries(days);
-      } catch (err) {
+      } catch (err: any) {
         console.error(err);
+        toast.error(err.message);
       } finally {
         setDataLoading(false);
       }
@@ -95,8 +68,48 @@ function Dashboard() {
   }, [profile, role]);
 
   const referralLink = profile?.referral_code
-    ? `${window.location.origin}${window.location.pathname}#/register?ref=${profile.referral_code}`
+    ? `${window.location.origin}${window.location.pathname.replace(/\/$/, '')}/#/register?ref=${profile.referral_code}`
     : null;
+
+  const handleShare = async () => {
+    if (!referralLink) {
+      toast.error("Referral link not available");
+      return;
+    }
+    
+    // 1. Immediate Open (to avoid popup blocker)
+    try {
+      const win = window.open(referralLink, '_blank');
+      if (!win) {
+        // If blocked, we fallback to clipboard and notify
+        toast.info("Popup blocked, but link copied to clipboard!");
+      } else {
+        toast.success("Opening registration page...");
+      }
+    } catch (e) {
+      console.error("Window open failed", e);
+    }
+
+    // 2. Clipboard Copy
+    try {
+      await navigator.clipboard.writeText(referralLink);
+    } catch (err) {
+      console.warn("Clipboard copy failed", err);
+    }
+
+    // 3. Native Share (Optional mobile experience)
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: 'Join Boutify',
+          text: `Use my code ${profile?.referral_code} to join my network!`,
+          url: referralLink,
+        });
+      } catch (err) {
+        // Silently ignore share cancellation
+      }
+    }
+  };
 
   const isLoading = authLoading || dataLoading;
 
@@ -111,32 +124,16 @@ function Dashboard() {
             </>
           ) : (
             <>
-              <h1 className="text-3xl font-bold">Welcome back, {profile?.full_name?.split(" ")[0]}</h1>
-              <p className="mt-1 text-muted-foreground capitalize">{role?.replace("_", " ")} dashboard</p>
+              <h1 className="text-3xl font-bold tracking-tight">Welcome back, {profile?.full_name?.split(" ")[0]}</h1>
+              <div className="mt-1 flex items-center gap-2">
+                <span className="text-xs font-bold uppercase tracking-wider text-primary bg-primary/10 px-2 py-0.5 rounded">
+                  {role?.replace("_", " ")}
+                </span>
+                <span className="text-sm text-muted-foreground">Personalized Dashboard</span>
+              </div>
             </>
           )}
         </div>
-        <Button 
-          variant="outline" 
-          size="sm" 
-          className="md:hidden flex gap-2"
-          onClick={async () => {
-            await signOut();
-            nav({ to: "/" });
-          }}
-        >
-          <LogOut className="h-4 w-4" /> Logout
-        </Button>
-        <Button 
-          variant="ghost" 
-          className="hidden md:flex gap-2 text-muted-foreground hover:text-foreground transition-colors"
-          onClick={async () => {
-            await signOut();
-            nav({ to: "/" });
-          }}
-        >
-          <LogOut className="h-4 w-4" /> Sign out
-        </Button>
       </div>
 
       {isLoading ? (
@@ -195,13 +192,8 @@ function Dashboard() {
                       <Copy className="mr-2 h-4 w-4" /> Copy code
                     </Button>
                     <Button
-                      className="bg-gradient-primary text-primary-foreground"
-                      onClick={() => {
-                        if (referralLink) {
-                          navigator.clipboard.writeText(referralLink);
-                          toast.success("Referral link copied");
-                        }
-                      }}
+                      className="bg-gradient-primary text-primary-foreground shadow-soft"
+                      onClick={handleShare}
                     >
                       <Share2 className="mr-2 h-4 w-4" /> Share link
                     </Button>

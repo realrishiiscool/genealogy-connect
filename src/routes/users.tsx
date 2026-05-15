@@ -1,7 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { db } from "@/lib/firebase";
-import { collection, getDocs, doc, updateDoc, query, orderBy, deleteDoc } from "firebase/firestore";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -26,7 +24,7 @@ export const Route = createFileRoute("/users")({
 });
 
 function UsersPage() {
-  const { user, profile, loading: authLoading, signOut } = useAuth();
+  const { user, profile, loading: authLoading, signOut, apiBase } = useAuth();
   const navigate = useNavigate();
   const [users, setUsers] = useState<Profile[]>([]);
   const [loading, setLoading] = useState(true);
@@ -42,13 +40,13 @@ function UsersPage() {
   const load = async () => {
     try {
       setLoading(true);
-      const qQuery = query(collection(db, "profiles"), orderBy("created_at", "desc"));
-      const snapshot = await getDocs(qQuery);
-      const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Profile));
+      const res = await fetch(`${apiBase}/api/users`);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
       setUsers(data);
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      toast.error("Failed to load users");
+      toast.error(err.message || "Failed to load users");
     } finally {
       setLoading(false);
     }
@@ -62,7 +60,12 @@ function UsersPage() {
 
   const updateStatus = async (id: string, status: "active" | "restricted") => {
     try {
-      await updateDoc(doc(db, "profiles", id), { status });
+      const res = await fetch(`${apiBase}/api/users/${id}/status`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status }),
+      });
+      if (!res.ok) throw new Error("Update failed");
       toast.success(`User ${status}`);
       load();
     } catch (error: any) {
@@ -72,7 +75,10 @@ function UsersPage() {
 
   const deleteUser = async (id: string) => {
     try {
-      await deleteDoc(doc(db, "profiles", id));
+      const res = await fetch(`${apiBase}/api/users/${id}`, {
+        method: "DELETE",
+      });
+      if (!res.ok) throw new Error("Delete failed");
       toast.success("User profile deleted successfully");
       load();
     } catch (error: any) {
@@ -97,23 +103,12 @@ function UsersPage() {
       <div className="space-y-6 p-6 md:p-10">
         <div className="flex items-end justify-between">
           <div>
-            <h1 className="text-3xl font-bold">Admin: User Management</h1>
-            <p className="mt-1 text-muted-foreground">View and manage all users across the platform.</p>
+            <h1 className="text-3xl font-bold tracking-tight">Admin: User Management</h1>
+            <p className="mt-1 text-muted-foreground font-medium">View and manage all users across the platform.</p>
           </div>
           <div className="flex gap-2">
-            <Button onClick={load} variant="outline" size="sm" disabled={loading} className="hidden md:flex">
-              {loading ? "Refreshing..." : "Refresh"}
-            </Button>
-            <Button 
-              variant="ghost" 
-              size="sm"
-              className="text-muted-foreground hover:text-foreground flex gap-2"
-              onClick={async () => {
-                await signOut();
-                navigate({ to: "/" });
-              }}
-            >
-              <LogOut className="h-4 w-4" /> Sign out
+            <Button onClick={load} variant="outline" size="sm" disabled={loading} className="hidden md:flex rounded-xl shadow-soft">
+              {loading ? "Refreshing..." : "Refresh list"}
             </Button>
           </div>
         </div>
@@ -212,7 +207,7 @@ function UsersPage() {
                             <Button size="sm" variant="outline" onClick={() => updateStatus(u.id, "active")}>Activate</Button>
                           )}
                           
-                          {u.id !== user?.uid && (
+                          {u.id !== user?.id && (
                             <AlertDialog>
                               <AlertDialogTrigger asChild>
                                 <Button size="sm" variant="ghost" className="text-destructive hover:bg-destructive/10 hover:text-destructive">

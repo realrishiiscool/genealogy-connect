@@ -3,9 +3,6 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { auth, db } from "@/lib/firebase";
-import { createUserWithEmailAndPassword } from "firebase/auth";
-import { doc, setDoc, collection, query, where, getDocs } from "firebase/firestore";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { Network } from "lucide-react";
@@ -23,58 +20,95 @@ export const Route = createFileRoute("/register")({
 function Register() {
   const nav = useNavigate();
   const search = Route.useSearch();
-  const { user, loading } = useAuth();
+  const { user, profile, loading, apiBase, signOut } = useAuth();
   const [tab, setTab] = useState<"customer" | "boutique_owner" | "admin">("customer");
   const [fullName, setFullName] = useState("");
   const [mobile, setMobile] = useState("");
   const [password, setPassword] = useState("");
   const [referral, setReferral] = useState(search.ref ?? "");
   const [boutiqueName, setBoutiqueName] = useState("");
+  const [referrerName, setReferrerName] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    if (search.ref) setReferral(search.ref);
-  }, [search.ref]);
+    if (search.ref) {
+      setReferral(search.ref);
+      // Fetch referrer name to show "You're joining X's network"
+      (async () => {
+        try {
+          const res = await fetch(`${apiBase}/api/dashboard/stats`);
+          const data = await res.json();
+          const refUser = data.allUsers.find((u: any) => u.referral_code === search.ref);
+          if (refUser) setReferrerName(refUser.full_name);
+        } catch (e) {
+          console.error("Failed to fetch referrer info");
+        }
+      })();
+    }
+  }, [search.ref, apiBase]);
 
-  useEffect(() => {
-    if (!loading && user) nav({ to: "/app" });
-  }, [user, loading, nav]);
+  // If user is already logged in, show a session notice instead of silent redirect
+  if (!loading && user && profile) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-gradient-hero px-4 py-12">
+        <div className="w-full max-w-md rounded-2xl border border-border bg-card p-8 shadow-elegant text-center">
+          <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
+            <Network className="h-8 w-8 text-primary" />
+          </div>
+          <h1 className="text-2xl font-bold">Already Logged In</h1>
+          <p className="mt-4 text-muted-foreground">
+            You are currently signed in as <strong className="text-foreground">{profile.full_name}</strong>.
+          </p>
+          <p className="mt-2 text-sm text-muted-foreground">
+            To register a new account, you must sign out first.
+          </p>
+          <div className="mt-8 space-y-3">
+            <Button 
+              className="w-full bg-gradient-primary text-primary-foreground shadow-soft"
+              onClick={() => nav({ to: "/app" })}
+            >
+              Go to Dashboard
+            </Button>
+            <Button 
+              variant="outline" 
+              className="w-full border-border/50"
+              onClick={async () => {
+                await signOut();
+                window.location.reload();
+              }}
+            >
+              Sign out and Register New
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setBusy(true);
     const email = `${mobile.replace(/\D/g, "")}@boutify.app`;
     try {
-      let referredBy = null;
-      if (tab === "customer" && referral.trim()) {
-        const q = query(collection(db, "profiles"), where("referral_code", "==", referral.trim().toUpperCase()));
-        const snapshot = await getDocs(q);
-        if (!snapshot.empty) {
-          referredBy = snapshot.docs[0].id;
-        } else {
-          toast.error("Invalid referral code");
-          setBusy(false);
-          return;
-        }
-      }
-
-      const { user: fbUser } = await createUserWithEmailAndPassword(auth, email, password);
-      const newReferralCode = Math.random().toString(36).substring(2, 8).toUpperCase();
-
-      await setDoc(doc(db, "profiles", fbUser.uid), {
-        full_name: fullName,
-        email,
-        mobile,
-        user_type: tab,
-        referral_code: newReferralCode,
-        referred_by: referredBy,
-        referral_code_input: referral.trim() || null,
-        boutique_name: tab === "boutique_owner" ? boutiqueName : null,
-        status: tab === "admin" ? "active" : "pending",
-        created_at: new Date().toISOString()
+      const res = await fetch(`${apiBase}/api/auth/register`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ 
+          fullName, 
+          email, 
+          password, 
+          mobile, 
+          userType: tab, 
+          referralCodeInput: referral, 
+          boutiqueName 
+        }),
       });
-      toast.success("Account created! Welcome.");
-      nav({ to: "/app" });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Registration failed");
+
+      toast.success("Account created! Please sign in.");
+      nav({ to: "/login" });
     } catch (error: any) {
       toast.error(error.message);
     } finally {
@@ -93,7 +127,13 @@ function Register() {
         </Link>
         <div className="rounded-2xl border border-border bg-card p-8 shadow-elegant">
           <h1 className="text-2xl font-bold">Create your account</h1>
-          <p className="mt-1 text-sm text-muted-foreground">Start growing your network today</p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {referrerName ? (
+              <span>You're joining <strong className="text-primary">{referrerName}</strong>'s network</span>
+            ) : (
+              "Start growing your network today"
+            )}
+          </p>
 
           <Tabs value={tab} onValueChange={(v) => setTab(v as typeof tab)} className="mt-6">
             <TabsList className="grid w-full grid-cols-3">

@@ -4,8 +4,6 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { db } from "@/lib/firebase";
-import { doc, updateDoc } from "firebase/firestore";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/app/boutique")({
@@ -13,41 +11,48 @@ export const Route = createFileRoute("/app/boutique")({
 });
 
 function BoutiquePage() {
-  const { profile, refreshProfile } = useAuth();
+  const { profile, refreshProfile, apiBase } = useAuth();
   const [name, setName] = useState(profile?.boutique_name ?? "");
   const [busy, setBusy] = useState(false);
+
   const save = async () => {
     setBusy(true);
     try {
-      await updateDoc(doc(db, "profiles", profile!.id), { boutique_name: name });
-      toast.success("Boutique updated");
-      refreshProfile();
-    } catch (error: any) {
-      toast.error(error.message);
+      const token = localStorage.getItem('token');
+      const res = await fetch(`${apiBase}/api/auth/profile`, {
+        method: "PATCH",
+        headers: { 
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify({ boutique_name: name }),
+      });
+
+      if (!res.ok) throw new Error("Failed to update boutique");
+
+      toast.success("Boutique updated!");
+      await refreshProfile();
+    } catch (err: any) {
+      toast.error(err.message);
     } finally {
       setBusy(false);
     }
   };
+
   return (
     <div className="space-y-6 p-6 md:p-10">
       <div>
-        <h1 className="text-3xl font-bold">Boutique Profile</h1>
-        <p className="mt-1 text-muted-foreground">Manage your boutique presence.</p>
+        <h1 className="text-3xl font-bold">Boutique Management</h1>
+        <p className="mt-1 text-muted-foreground">Customize your boutique details.</p>
       </div>
-      <div className="max-w-xl rounded-2xl border border-border bg-card p-6 shadow-soft">
-        <div className="space-y-4">
-          <div className="space-y-2">
-            <Label>Boutique name</Label>
-            <Input value={name} onChange={(e) => setName(e.target.value)} />
-          </div>
-          <div className="space-y-2">
-            <Label>Owner</Label>
-            <Input value={profile?.full_name ?? ""} disabled />
-          </div>
-          <Button onClick={save} disabled={busy} className="bg-gradient-primary text-primary-foreground">
-            {busy ? "Saving…" : "Save changes"}
-          </Button>
+      <div className="max-w-xl space-y-4 rounded-2xl border border-border bg-card p-6 shadow-soft">
+        <div className="space-y-2">
+          <Label>Boutique Name</Label>
+          <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Enter boutique name" />
         </div>
+        <Button onClick={save} disabled={busy} className="bg-gradient-primary text-primary-foreground">
+          {busy ? "Saving…" : "Save changes"}
+        </Button>
       </div>
     </div>
   );

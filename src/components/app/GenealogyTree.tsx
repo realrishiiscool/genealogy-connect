@@ -1,9 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { ReactFlow, Background, Controls, MiniMap, type Node, type Edge, MarkerType } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
-import { db } from "@/lib/firebase";
-import { collection, query, where, getDocs } from "firebase/firestore";
-import type { Profile } from "@/contexts/AuthContext";
+import { useAuth, type Profile } from "@/contexts/AuthContext";
 
 type Customer = Pick<Profile, "id" | "full_name" | "referral_code" | "referred_by" | "status" | "created_at" | "mobile">;
 
@@ -11,47 +9,39 @@ function CustomerNode({ data }: { data: { name: string; code: string | null; ref
   const statusColor =
     data.status === "active" ? "bg-emerald-500" : data.status === "pending" ? "bg-amber-500" : "bg-rose-500";
 
-  if (data.depth >= 2) {
-    return (
-      <div className="min-w-[210px] rounded-2xl border border-border bg-card shadow-soft p-4">
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-full text-sm font-bold bg-gradient-primary text-primary-foreground">
-            {data.name[0]?.toUpperCase()}
-          </div>
-          <div className="min-w-0 flex-1">
-            <div className="truncate text-sm font-semibold">{data.name}</div>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  // Only show details (mobile, code) for level 0 (root) and level 1
+  const showDetails = data.depth < 2;
 
   return (
-    <div className={`min-w-[210px] rounded-2xl border ${data.root ? "border-transparent bg-gradient-primary text-primary-foreground shadow-elegant" : "border-border bg-card shadow-soft"} p-4`}>
+    <div className={`min-w-[220px] rounded-2xl border ${data.root ? "border-transparent bg-gradient-primary text-primary-foreground shadow-elegant" : "border-border bg-card shadow-soft"} p-5`}>
       <div className="flex items-center gap-3">
-        <div className={`flex h-10 w-10 items-center justify-center rounded-full text-sm font-bold ${data.root ? "bg-white/20" : "bg-gradient-primary text-primary-foreground"}`}>
+        <div className={`flex h-12 w-12 items-center justify-center rounded-full text-lg font-bold ${data.root ? "bg-white/20" : "bg-gradient-primary text-primary-foreground"}`}>
           {data.name[0]?.toUpperCase()}
         </div>
         <div className="min-w-0 flex-1">
-          <div className="truncate text-sm font-semibold">{data.name}</div>
-          <div className={`truncate font-mono text-xs ${data.root ? "opacity-90" : "text-muted-foreground"}`}>{data.code ?? "—"}</div>
+          <div className="truncate text-base font-bold">{data.name}</div>
+          {showDetails && (
+            <div className={`truncate font-mono text-xs ${data.root ? "opacity-90" : "text-muted-foreground"}`}>{data.code ?? "—"}</div>
+          )}
         </div>
       </div>
-      {data.mobile && (
-        <div className={`mt-2 text-sm font-medium ${data.root ? "opacity-90" : "text-foreground"}`}>
+      {showDetails && data.mobile && (
+        <div className={`mt-3 text-sm font-semibold ${data.root ? "opacity-90" : "text-foreground"}`}>
           {data.mobile}
         </div>
       )}
-      <div className={`mt-3 flex items-center justify-between text-xs ${data.root ? "opacity-90" : "text-muted-foreground"}`}>
-        <span className="inline-flex items-center gap-1.5">
-          <span className={`h-2 w-2 rounded-full ${statusColor}`} />
+      <div className={`mt-4 flex items-center justify-between text-xs ${data.root ? "opacity-90" : "text-muted-foreground"}`}>
+        <span className="inline-flex items-center gap-1.5 font-medium">
+          <span className={`h-2.5 w-2.5 rounded-full ${statusColor}`} />
           {data.status}
         </span>
-        <span>{data.refs} refs</span>
+        <span className="font-medium">{data.refs} network members</span>
       </div>
-      <div className={`mt-1 text-[10px] uppercase tracking-wide ${data.root ? "opacity-75" : "text-muted-foreground"}`}>
-        Joined {new Date(data.date).toLocaleDateString()}
-      </div>
+      {showDetails && (
+        <div className={`mt-2 text-[10px] uppercase tracking-widest font-semibold ${data.root ? "opacity-75" : "text-muted-foreground"}`}>
+          Member since {new Date(data.date).toLocaleDateString()}
+        </div>
+      )}
     </div>
   );
 }
@@ -59,23 +49,25 @@ function CustomerNode({ data }: { data: { name: string; code: string | null; ref
 const nodeTypes = { customer: CustomerNode };
 
 export function GenealogyTree({ rootId }: { rootId?: string }) {
+  const { apiBase } = useAuth();
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     (async () => {
       try {
-        const q = query(collection(db, "profiles"), where("user_type", "==", "customer"));
-        const snapshot = await getDocs(q);
-        const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Customer));
-        setCustomers(data);
+        const res = await fetch(`${apiBase}/api/dashboard/stats`);
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error);
+        const customerProfiles = data.allUsers.filter((u: any) => u.user_type === "customer");
+        setCustomers(customerProfiles);
       } catch (error) {
         console.error("Error fetching network:", error);
       } finally {
         setLoading(false);
       }
     })();
-  }, []);
+  }, [apiBase]);
 
   const { nodes, edges } = useMemo(() => {
     if (!customers.length) return { nodes: [] as Node[], edges: [] as Edge[] };
@@ -98,22 +90,28 @@ export function GenealogyTree({ rootId }: { rootId?: string }) {
     const VSPACE = 170;
 
     function layout(node: Customer, depth: number, xOffset: number, isRoot: boolean): number {
-      const children = depth < 3 ? (byParent.get(node.id) ?? []) : [];
+      const children = byParent.get(node.id) ?? [];
       let width = 0;
       const childPositions: number[] = [];
-      if (children.length === 0) width = 1;
-      else {
+      
+      if (children.length === 0) {
+        width = 1.2; // Increase width for leaf nodes
+      } else {
+        let currentX = xOffset;
         for (const ch of children) {
-          const w = layout(ch, depth + 1, xOffset + width, false);
-          childPositions.push(xOffset + width + w / 2 - 0.5);
+          const w = layout(ch, depth + 1, currentX, false);
+          childPositions.push(currentX + w / 2);
+          currentX += w;
           width += w;
         }
       }
-      const myX = children.length === 0 ? xOffset : (childPositions[0] + childPositions[childPositions.length - 1]) / 2;
+
+      const myX = children.length === 0 ? xOffset + width / 2 : (childPositions[0] + childPositions[childPositions.length - 1]) / 2;
+      
       nodes.push({
         id: node.id,
         type: "customer",
-        position: { x: myX * HSPACE, y: depth * VSPACE },
+        position: { x: myX * 280, y: depth * 220 }, // Increased spacing
         data: {
           name: node.full_name,
           code: node.referral_code,
@@ -125,18 +123,19 @@ export function GenealogyTree({ rootId }: { rootId?: string }) {
           depth: depth,
         },
       });
+
       for (const ch of children) {
         edges.push({
           id: `${node.id}-${ch.id}`,
           source: node.id,
           target: ch.id,
-          type: "smoothstep",
+          type: "step", // Changed to 'step' for a more classic tree look
           animated: true,
-          style: { stroke: "oklch(0.6 0.2 295)", strokeWidth: 2 },
-          markerEnd: { type: MarkerType.ArrowClosed, color: "oklch(0.6 0.2 295)" },
+          style: { stroke: "oklch(0.6 0.2 295)", strokeWidth: 3 },
+          markerEnd: { type: MarkerType.ArrowClosed, color: "oklch(0.6 0.2 295)", width: 20, height: 20 },
         });
       }
-      return Math.max(width, 1);
+      return width;
     }
 
     let x = 0;
@@ -165,9 +164,9 @@ export function GenealogyTree({ rootId }: { rootId?: string }) {
       proOptions={{ hideAttribution: true }}
       minZoom={0.2}
     >
-      <Background gap={24} size={1.5} color="oklch(0.85 0.04 290)" />
-      <Controls className="!bg-card !border-border" />
-      <MiniMap pannable zoomable className="!bg-card !border-border" nodeColor={() => "oklch(0.6 0.2 295)"} />
+      <Background gap={24} size={1.5} color="oklch(0.9 0.01 290)" />
+      <Controls className="!bg-background/80 !backdrop-blur-md !border-border/50 !shadow-soft !rounded-xl" />
+      <MiniMap pannable zoomable className="!bg-transparent !border-transparent" nodeColor={() => "oklch(0.6 0.2 295)"} />
     </ReactFlow>
   );
 }

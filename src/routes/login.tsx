@@ -3,8 +3,6 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { auth } from "@/lib/firebase";
-import { signInWithEmailAndPassword } from "firebase/auth";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { Network } from "lucide-react";
@@ -15,7 +13,7 @@ export const Route = createFileRoute("/login")({
 
 function Login() {
   const nav = useNavigate();
-  const { user, loading } = useAuth();
+  const { user, loading, apiBase, refreshProfile } = useAuth();
   const [mobile, setMobile] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
@@ -27,9 +25,18 @@ function Login() {
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setBusy(true);
-    const email = `${mobile.replace(/\D/g, "")}@boutify.app`;
     try {
-      await signInWithEmailAndPassword(auth, email, password);
+      const res = await fetch(`${apiBase}/api/auth/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mobile, password }),
+      });
+      
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Login failed");
+
+      localStorage.setItem("token", data.token);
+      await refreshProfile();
       toast.success("Welcome back!");
       nav({ to: "/app" });
     } catch (error: any) {
